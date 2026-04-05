@@ -14,7 +14,7 @@ The server should **deliver** the message but **never be able to read it**.
 ```
 Alice ──[encrypted]──► Server ──[encrypted]──► Bob
                          │
-                    can't read ✗
+                    can't read [X]
 ```
 
 This is called **end-to-end encryption (E2E)** — only the sender and receiver can read the content. The server, the network, anyone who intercepts traffic — sees only meaningless ciphertext.
@@ -33,7 +33,7 @@ When Alice installs the app, her device generates an **X25519 key pair**:
 - **Public key** — safe to share with anyone (like a phone number)
 
 ```java
-var alice = Wipher.create();
+var alice = Wipher.inMemory();
 var alicePublicKey = alice.getPublicKey(); // safe to send anywhere
 ```
 
@@ -88,7 +88,7 @@ var encrypted = alice.encrypt("bob", "Hello Bob!");
 
 // Bob decrypts
 String text = bob.decrypt("alice", encrypted);
-// → "Hello Bob!"
+// -> "Hello Bob!"
 ```
 
 **GCM** (Galois/Counter Mode) provides two things at once:
@@ -101,9 +101,9 @@ Each message gets a unique random **nonce** (12 bytes), so encrypting the same t
 
 ```
 Alice sends:  MSG a4Bf9x2Kp7...QmR8w==
-Server sees:  MSG a4Bf9x2Kp7...QmR8w==   ← meaningless bytes
+Server sees:  MSG a4Bf9x2Kp7...QmR8w==   <- meaningless bytes
 Bob receives: MSG a4Bf9x2Kp7...QmR8w==
-Bob decrypts: "Hello Bob!"               ← only Bob can read
+Bob decrypts: "Hello Bob!"               <- only Bob can read
 ```
 
 ---
@@ -180,8 +180,8 @@ RSA is 4000x slower and can only encrypt tiny chunks. In practice, even RSA-base
 TLS protects data **in transit** (client ↔ server). But the server still sees plaintext:
 
 ```
-TLS:     Alice ──[encrypted]──► Server (decrypts, reads, re-encrypts) ──[encrypted]──► Bob
-Wipher:  Alice ──[encrypted]──► Server (can't decrypt) ──[encrypted]──► Bob
+TLS:     Alice ──[encrypted]──>  Server (decrypts, reads, re-encrypts) ──[encrypted]──> Bob
+Wipher:  Alice ──[encrypted]──>  Server (can't decrypt)                ──[encrypted]──> Bob
 ```
 
 TLS trusts the server. Wipher doesn't trust anyone except the endpoints.
@@ -214,8 +214,8 @@ Yes. If someone has physical access to the device and can extract the private ke
 
 ```java
 // Create instances (each represents a device)
-var alice = Wipher.create();
-var bob = Wipher.create();
+var alice = Wipher.inMemory();
+var bob = Wipher.inMemory();
 
 // Exchange public keys (through any channel)
 alice.establishSession("bob", bob.getPublicKey());
@@ -299,11 +299,79 @@ WipherEncryptingStream.wrap(key, inputStream, 1024);
 WipherEncryptingStream.wrap(key, inputStream, 1024 * 1024);
 ```
 
-### Custom key storage
+### Key storage
+
+Wipher needs to persist identity keys and session state. Five built-in implementations cover most deployment scenarios:
+
+#### In-memory (default)
+
+Everything in heap. Lost on restart. Good for tests and ephemeral processes.
 
 ```java
-// Implement WipherKeyStore for persistent storage
-var wipher = Wipher.create(new MyDatabaseKeyStore());
+var wipher = Wipher.inMemory();
+```
+
+#### File-based
+
+Keys and sessions stored as files on disk. Simple, no dependencies.
+
+```java
+var wipher = Wipher.fileBased(Path.of(System.getProperty("user.home"), ".wipher"));
+```
+
+```
+~/.wipher/
+├── identity.pub         — public key (X.509)
+├── identity.key         — private key (PKCS#8)
+└── sessions/
+    ├── alice.session
+    └── bob.session
+```
+
+#### Database (JDBC)
+
+Any SQL database — PostgreSQL, MySQL, SQLite, H2. Auto-creates tables.
+
+```java
+// With DataSource (HikariCP, Spring, etc.)
+var wipher = Wipher.fromDatabase(dataSource);
+
+// Or with raw JDBC URL
+var wipher = Wipher.fromDatabase("jdbc:postgresql://localhost/wipher", "user", "pass");
+```
+
+#### Environment variables
+
+Identity from env vars, sessions in memory. Built for Docker and serverless.
+
+```java
+var wipher = Wipher.fromEnvironments();
+```
+
+```bash
+export WIPHER_PUBLIC_KEY=MCowBQYDK2Vu...
+export WIPHER_PRIVATE_KEY=MC4CAQAwBQYD...
+```
+
+On first run without env vars, Wipher generates keys and prints ready-to-use export commands to stderr.
+
+#### Encrypted (decorator)
+
+Wraps any store with AES-256-GCM encryption at rest. Even if the disk or database is compromised, data is useless without the passphrase.
+
+```java
+var wipher = Wipher.encrypted(
+    Wipher.fileBased(Path.of("~/.wipher")),
+    "my-strong-passphrase"
+);
+```
+
+#### Custom
+
+Implement `WipherKeyStore` for Redis, S3, HSM, or anything else:
+
+```java
+var wipher = Wipher.create(new MyCustomKeyStore());
 ```
 
 ---
