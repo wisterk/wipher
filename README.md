@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="logo.png" width="48" align="left">
-
 # Wipher
 
 **End-to-end encryption for Java, made simple.**
