@@ -1,8 +1,39 @@
+<div align="center">
+
+<img src="logo.png" width="48" align="left">
+
 # Wipher
 
-Lightweight end-to-end encryption library for Java 21+.
+**End-to-end encryption for Java, made simple.**
 
-Wipher implements a protocol similar to what modern messengers (Signal, WhatsApp) use under the hood — but as a simple, embeddable Java API with zero external dependencies.
+[![Maven Central](https://img.shields.io/maven-central/v/me.wisterk/wipher?color=8b5cf6&label=Maven%20Central)](https://central.sonatype.com/artifact/me.wisterk/wipher)
+[![Java](https://img.shields.io/badge/Java-21%2B-ed8b00?logo=openjdk&logoColor=white)](https://openjdk.org/)
+[![License](https://img.shields.io/github/license/wisterk/wipher?color=22c55e)](LICENSE)
+[![Zero Dependencies](https://img.shields.io/badge/dependencies-0-38bdf8)](pom.xml)
+
+X25519 key exchange &bull; AES-256-GCM &bull; HKDF key derivation &bull; Sender Keys for groups &bull; Streaming encryption
+
+---
+
+*A protocol similar to what Signal and WhatsApp use under the hood — as a lightweight, embeddable Java API.*
+
+</div>
+
+## Installation
+
+**Maven:**
+```xml
+<dependency>
+    <groupId>me.wisterk</groupId>
+    <artifactId>wipher</artifactId>
+    <version>1.0.0</version>
+</dependency>
+```
+
+**Gradle:**
+```groovy
+implementation 'me.wisterk:wipher:1.0.0'
+```
 
 ---
 
